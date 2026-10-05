@@ -1,107 +1,108 @@
 <!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Web Components — Module 1</title>
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: system-ui, -apple-system, sans-serif;
-      background: #f8fafc;
-      color: #0f172a;
-      padding: 2rem;
-    }
-
-    h1 {
-      margin: 0 0 1.5rem;
-      font-size: 1.5rem;
-      font-weight: 600;
-    }
-
-    #app {
-      max-width: 520px;
-    }
-
-    my-panel {
-      --panel-border-radius: 8px;
-    }
-
-    my-select {
-      --select-width: 100%;
-      --select-accent-color: #3b82f6;
-      --select-popup-background: #ffffff;
-    }
-
-    .light-find-box {
-      width: 100%;
-      padding: 0.65rem 0.75rem;
-      border: 0;
-      border-bottom: 1px solid #e2e8f0;
-      background: transparent;
-      font: inherit;
-    }
-
-    .light-find-box:focus {
-      outline: none;
-    }
-  </style>
-</head>
-<body>
-  <h1>My Select — Web Component</h1>
-  <div id="app"></div>
-
-  <script>
-    const onError = (err) => {
-      console.error('Failed to load component:', err);
-    };
-
-    const components = ['my-panel', 'my-select'];
-    let loadedCount = 0;
-
-    const mountApp = () => {
-      const panel = document.createElement('my-panel');
-      panel.dataset.header = 'MultiSelect';
-      panel.setAttribute('toggleable', '');
-
-      const select = document.createElement('my-select');
-      select.innerHTML = `
-        <div slot="search">
-          <input class="light-find-box" placeholder="Поиск..." />
-        </div>
-        <option value="opt1">Option 1</option>
-        <option value="opt2">Option 2</option>
-        <option value="opt3">Option 3</option>
-        <option value="opt4">Angular</option>
-        <option value="opt5">React</option>
-        <option value="opt6">Vue</option>
-      `;
-
-      panel.append(select);
-      document.getElementById('app').append(panel);
-    };
-
-    const onLoad = () => {
-      loadedCount += 1;
-
-      if (loadedCount === components.length) {
-        mountApp();
-      }
-    };
-
-    components.forEach((component) => {
-      const script = document.createElement('script');
-      script.src = `./${component}.js`;
-      script.dataset.name = component;
-      script.addEventListener('load', onLoad);
-      script.addEventListener('error', onError);
-      document.body.append(script);
-    });
-  </script>
-</body>
-</html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Components — Module 1</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      padding: 2rem;
+    }
+
+    h1 {
+      margin: 0 0 1.5rem;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    #app {
+      max-width: 520px;
+    }
+
+    my-panel {
+      --panel-border-radius: 8px;
+    }
+
+    my-select {
+      --select-width: 100%;
+      --select-accent-color: #3b82f6;
+      --select-popup-background: #ffffff;
+    }
+
+    .light-find-box {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border: 0;
+      border-bottom: 1px solid #e2e8f0;
+      background: transparent;
+      font: inherit;
+    }
+
+    .light-find-box:focus {
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>My Select — Web Component</h1>
+  <div id="app"></div>
+
+  <script>
+    const onError = (err) => {
+      console.error('Failed to load component:', err);
+    };
+
+    const components = ['my-panel', 'my-select'];
+    let loadedCount = 0;
+
+    const mountApp = () => {
+      const panel = document.createElement('my-panel');
+      panel.setAttribute('header', 'MultiSelect');
+      panel.setAttribute('sub-header', 'Choose one or more options');
+      panel.setAttribute('toggleable', '');
+
+      const select = document.createElement('my-select');
+      select.innerHTML = `
+        <div slot="search">
+          <input class="light-find-box" placeholder="Поиск..." />
+        </div>
+        <option value="opt1">Option 1</option>
+        <option value="opt2">Option 2</option>
+        <option value="opt3">Option 3</option>
+        <option value="opt4">Angular</option>
+        <option value="opt5">React</option>
+        <option value="opt6">Vue</option>
+      `;
+
+      panel.append(select);
+      document.getElementById('app').append(panel);
+    };
+
+    const onLoad = () => {
+      loadedCount += 1;
+
+      if (loadedCount === components.length) {
+        mountApp();
+      }
+    };
+
+    components.forEach((component) => {
+      const script = document.createElement('script');
+      script.src = `./${component}.js`;
+      script.dataset.name = component;
+      script.addEventListener('load', onLoad);
+      script.addEventListener('error', onError);
+      document.body.append(script);
+    });
+  </script>
+</body>
+</html>

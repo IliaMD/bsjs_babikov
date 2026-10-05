@@ -2,9 +2,13 @@
   const name = document.currentScript.dataset.name;
 
   class MyPanel extends HTMLElement {
+    static observedAttributes = ['header', 'sub-header'];
+
     #shadow;
     #content;
     #toggleButton;
+    #titleEl;
+    #subtitleEl;
 
     constructor() {
       super();
@@ -19,9 +23,40 @@
       this.#createTemplate();
     }
 
+    attributeChangedCallback(name, oldValue, newValue) {
+      if (oldValue === newValue) {
+        return;
+      }
+
+      if (name === 'header') {
+        this.#updateHeader(newValue);
+      }
+
+      if (name === 'sub-header') {
+        this.#updateSubHeader(newValue);
+      }
+    }
+
+    #updateHeader(value) {
+      if (!this.#titleEl) {
+        return;
+      }
+
+      this.#titleEl.textContent = value || 'Default header';
+    }
+
+    #updateSubHeader(value) {
+      if (!this.#subtitleEl) {
+        return;
+      }
+
+      const text = value || '';
+      this.#subtitleEl.textContent = text;
+      this.#subtitleEl.hidden = !text;
+    }
+
     #createTemplate() {
-      const header = this.dataset.header || 'Panel';
-      const toggleable = this.hasAttribute('toggleable') || this.dataset.toggleable === 'true';
+      const toggleable = this.hasAttribute('toggleable');
 
       const template = document.createElement('template');
       template.innerHTML = `
@@ -51,11 +86,29 @@
             background: var(--panel-header-background, #f8fafc);
           }
 
+          .panel-heading {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+            min-width: 0;
+          }
+
           .panel-title {
             margin: 0;
             font-size: 1rem;
             font-weight: 600;
             color: var(--panel-title-color, #0f172a);
+          }
+
+          .panel-subtitle {
+            margin: 0;
+            font-size: 0.85rem;
+            font-weight: 400;
+            color: var(--panel-subtitle-color, #64748b);
+          }
+
+          .panel-subtitle[hidden] {
+            display: none;
           }
 
           .panel-toggle {
@@ -106,9 +159,12 @@
 
         <section class="panel">
           <div class="panel-header">
-            <slot name="header">
-              <h2 class="panel-title"></h2>
-            </slot>
+            <div class="panel-heading">
+              <slot name="header">
+                <h2 class="panel-title">Default header</h2>
+              </slot>
+              <p class="panel-subtitle" hidden></p>
+            </div>
             <button class="panel-toggle" type="button" aria-expanded="true" ${toggleable ? '' : 'hidden'}>
               <svg class="panel-toggle__icon" viewBox="0 0 12 8" aria-hidden="true">
                 <path d="M1 1.5L6 6.5L11 1.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -123,13 +179,13 @@
 
       this.#shadow.append(template.content.cloneNode(true));
 
-      const title = this.#shadow.querySelector('.panel-title');
-      if (title) {
-        title.textContent = header;
-      }
-
+      this.#titleEl = this.#shadow.querySelector('.panel-title');
+      this.#subtitleEl = this.#shadow.querySelector('.panel-subtitle');
       this.#content = this.#shadow.querySelector('.panel');
       this.#toggleButton = this.#shadow.querySelector('.panel-toggle');
+
+      this.#updateHeader(this.getAttribute('header'));
+      this.#updateSubHeader(this.getAttribute('sub-header'));
 
       if (toggleable) {
         this.#toggleButton.addEventListener('click', () => {
