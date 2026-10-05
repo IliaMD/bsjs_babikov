@@ -192,20 +192,20 @@
       if (!thread) {
         thread = new Worker('./thread.js');
 
-        thread.onmessage = (evt) => {
+        thread.addEventListener('message', (evt) => {
           resultNode.textContent = String(evt.data);
           startButton.disabled = false;
-        };
+        });
 
-        thread.onerror = () => {
+        thread.addEventListener('error', () => {
           resultNode.textContent = 'Worker error';
           startButton.disabled = false;
-        };
+        });
       }
 
       startButton.disabled = true;
       resultNode.textContent = 'Calculating...';
-      thread.postMessage(3000);
+      thread.postMessage({ timeout: 5000 });
     });
   </script>
 </body>

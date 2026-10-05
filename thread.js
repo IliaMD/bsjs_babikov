@@ -1,18 +1,17 @@
-const slowFunction = (timeout = 3000) => {
-  const start = performance.now();
-  let x = 0;
-  let i = 0;
+let worker2 = null;
 
-  do {
-    i += 1;
-    x += (Math.random() - 0.5) * i;
-  } while (performance.now() - start < timeout);
+self.addEventListener('message', (evt) => {
+  if (!worker2) {
+    worker2 = new Worker('./thread2.js');
 
-  return x;
-};
+    worker2.addEventListener('message', (messageEvent) => {
+      self.postMessage(messageEvent.data);
+    });
 
-self.onmessage = (evt) => {
-  const timeout = typeof evt.data === 'number' ? evt.data : 3000;
-  const result = slowFunction(timeout);
-  self.postMessage(result);
-};
+    worker2.addEventListener('error', (errorEvent) => {
+      self.postMessage({ error: errorEvent.message });
+    });
+  }
+
+  worker2.postMessage(evt.data);
+});
