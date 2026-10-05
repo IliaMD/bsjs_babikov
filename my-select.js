@@ -4,29 +4,78 @@
   class MySelect extends HTMLElement {
     #shadow;
     #selectButton;
+    #selectButtonLabel;
     #selectPopup;
-    #selectPopupSearch;
     #optionsBox;
     #options = [];
+    #selectedValues = [];
+    #onDocumentClick = (evt) => {
+      if (!this.#selectPopup?.classList.contains('open')) {
+        return;
+      }
+
+      if (evt.composedPath().includes(this)) {
+        return;
+      }
+
+      this.#closePopup();
+    };
 
     constructor() {
       super();
     }
 
-    connectedCallback() {
-      this.#shadow = this.attachShadow({ mode: 'open' });
-      this.#createTemplate();
+    get value() {
+      return this.#selectedValues.join(',');
     }
 
-    disconnectedCallback() {}
+    set value(next) {
+      this.#selectedValues = String(next || '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      this.#syncCheckedState();
+      this.#updateButtonLabel();
+    }
+
+    connectedCallback() {
+      if (!this.#shadow) {
+        this.#shadow = this.attachShadow({ mode: 'open' });
+        this.#createTemplate();
+      }
+
+      document.addEventListener('click', this.#onDocumentClick);
+    }
+
+    disconnectedCallback() {
+      document.removeEventListener('click', this.#onDocumentClick);
+    }
 
     adoptedCallback() {}
 
     attributeChangedCallback() {}
 
-    #openPopup() {
-      this.#selectPopup.classList.toggle('open');
-      this.#selectButton.classList.toggle('open');
+    #togglePopup() {
+      const isOpen = this.#selectPopup.classList.toggle('open');
+      this.#selectButton.classList.toggle('open', isOpen);
+    }
+
+    #closePopup() {
+      this.#selectPopup.classList.remove('open');
+      this.#selectButton.classList.remove('open');
+    }
+
+    #getSearchInput() {
+      const slot = this.#shadow.querySelector('slot[name="search"]');
+      const assigned = slot.assignedElements({ flatten: true });
+
+      if (assigned.length) {
+        const first = assigned[0];
+        return first.matches('input') ? first : first.querySelector('input');
+      }
+
+      return slot.querySelector('input');
     }
 
     #createTemplate() {
@@ -84,6 +133,10 @@
             color: var(--select-placeholder-color, #64748b);
           }
 
+          .select-button__label.has-value {
+            color: inherit;
+          }
+
           .select-button__icon {
             flex-shrink: 0;
             width: 0.9rem;
@@ -116,7 +169,10 @@
             flex-direction: column;
           }
 
-          .select-popup-search {
+          .select-popup-search,
+          ::slotted(input),
+          ::slotted([slot="search"]) {
+            display: block;
             width: 100%;
             margin: 0;
             padding: 0.65rem 0.75rem;
@@ -125,9 +181,11 @@
             background: transparent;
             color: inherit;
             font: inherit;
+            box-sizing: border-box;
           }
 
-          .select-popup-search:focus {
+          .select-popup-search:focus,
+          ::slotted(input:focus) {
             outline: none;
           }
 
@@ -172,7 +230,9 @@
           </svg>
         </button>
         <div class="select-popup">
-          <input class="select-popup-search" type="search" placeholder="Search..." />
+          <slot name="search">
+            <input class="select-popup-search" type="search" placeholder="Search..." />
+          </slot>
           <div class="select-popup-options"></div>
         </div>
       `;
@@ -180,15 +240,51 @@
       this.#shadow.append(template.content.cloneNode(true));
 
       this.#selectButton = this.#shadow.querySelector('.select-button');
+      this.#selectButtonLabel = this.#shadow.querySelector('.select-button__label');
       this.#selectPopup = this.#shadow.querySelector('.select-popup');
-      this.#selectPopupSearch = this.#shadow.querySelector('.select-popup-search');
       this.#optionsBox = this.#shadow.querySelector('.select-popup-options');
 
-      const renderedOptions = this.#renderOptions(this.#options);
+      this.#refreshOptions(this.#options);
+      this.#bindSearchInput();
+
+      this.#selectButton.addEventListener('click', () => this.#togglePopup());
+    }
+
+    #bindSearchInput() {
+      const slot = this.#shadow.querySelector('slot[name="search"]');
+
+      const bind = () => {
+        const input = this.#getSearchInput();
+        if (!input || input.dataset.bound === 'true') {
+          return;
+        }
+
+        input.dataset.bound = 'true';
+        input.addEventListener('input', (evt) => this.#filterOptions(evt.target.value));
+      };
+
+      bind();
+      slot.addEventListener('slotchange', bind);
+    }
+
+    #filterOptions(query) {
+      const normalized = String(query || '').trim().toLowerCase();
+      const filtered = this.#options.filter((item) => {
+        const [value, text] = Object.entries(item)[0];
+        return (
+          text.toLowerCase().includes(normalized) ||
+          value.toLowerCase().includes(normalized)
+        );
+      });
+
+      this.#refreshOptions(filtered);
+    }
+
+    #refreshOptions(options) {
+      const renderedOptions = this.#renderOptions(options);
       this.#optionsBox.replaceWith(renderedOptions);
       this.#optionsBox = renderedOptions;
-
-      this.#selectButton.addEventListener('click', () => this.#openPopup());
+      this.#syncCheckedState();
     }
 
     #renderOptions(options) {
@@ -204,13 +300,63 @@
         const [value, text] = Object.entries(item)[0];
         const node = optionTemplate.content.cloneNode(true);
         const label = node.querySelector('.option');
+        const checkbox = label.querySelector('input');
 
         label.dataset.value = value;
         label.append(document.createTextNode(text));
+        checkbox.checked = this.#selectedValues.includes(value);
+
+        checkbox.addEventListener('change', () => {
+          this.#onOptionChange(value, checkbox.checked);
+        });
+
         optionsBox.append(node);
       });
 
       return optionsBox;
+    }
+
+    #onOptionChange(value, checked) {
+      if (checked) {
+        if (!this.#selectedValues.includes(value)) {
+          this.#selectedValues.push(value);
+        }
+      } else {
+        this.#selectedValues = this.#selectedValues.filter((item) => item !== value);
+      }
+
+      this.#updateButtonLabel();
+    }
+
+    #syncCheckedState() {
+      if (!this.#optionsBox) {
+        return;
+      }
+
+      this.#optionsBox.querySelectorAll('.option').forEach((label) => {
+        const checkbox = label.querySelector('input');
+        checkbox.checked = this.#selectedValues.includes(label.dataset.value);
+      });
+    }
+
+    #updateButtonLabel() {
+      if (!this.#selectButtonLabel) {
+        return;
+      }
+
+      if (!this.#selectedValues.length) {
+        this.#selectButtonLabel.textContent = 'Select';
+        this.#selectButtonLabel.classList.remove('has-value');
+        return;
+      }
+
+      const labels = this.#selectedValues.map((value) => {
+        const match = this.#options.find((item) => Object.keys(item)[0] === value);
+        return match ? Object.values(match)[0] : value;
+      });
+
+      this.#selectButtonLabel.textContent = labels.join(', ');
+      this.#selectButtonLabel.classList.add('has-value');
     }
   }
 
