@@ -27,6 +27,34 @@
     #app {
       max-width: 480px;
     }
+
+    my-select .select-button {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    my-select .select-popup {
+      margin-top: 0.5rem;
+      padding: 0.75rem;
+      border: 1px solid #ccc;
+      background: #fff;
+    }
+
+    my-select .select-popup-search {
+      width: 100%;
+      margin-bottom: 0.5rem;
+      padding: 0.4rem 0.5rem;
+    }
+
+    my-select .option {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -37,6 +65,13 @@
     const onLoad = (evt) => {
       const name = evt.target.dataset.name;
       const element = document.createElement(name);
+
+      element.innerHTML = `
+        <option value="opt1">Option 1</option>
+        <option value="opt2">Option 2</option>
+        <option value="opt3">Option 3</option>
+      `;
+
       document.getElementById('app').append(element);
     };
 
