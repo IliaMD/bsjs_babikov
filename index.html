@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Web Components — Module 1</title>
+  <title>BSJS — Web Components & Service Workers</title>
   <style>
     * {
       box-sizing: border-box;
@@ -60,7 +60,14 @@
       outline: none;
     }
 
-    #start {
+    .workers-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    #start,
+    #unregister {
       padding: 0.55rem 1rem;
       border: 1px solid #cbd5e1;
       border-radius: 6px;
@@ -69,11 +76,13 @@
       cursor: pointer;
     }
 
-    #start:hover {
+    #start:hover,
+    #unregister:hover {
       border-color: #94a3b8;
     }
 
-    #start:disabled {
+    #start:disabled,
+    #unregister:disabled {
       opacity: 0.6;
       cursor: wait;
     }
@@ -120,9 +129,12 @@
   <h1>Module 1 — Web Components</h1>
   <div id="app"></div>
 
-  <h2>Module 2 — Web Workers</h2>
+  <h2>Module 2 — Service Worker</h2>
   <div id="workers">
-    <button id="start" type="button">Старт</button>
+    <div class="workers-actions">
+      <button id="start" type="button">Start</button>
+      <button id="unregister" type="button">Unregister Service Worker</button>
+    </div>
     <div class="spinner-wrap">
       <svg xmlns="http://www.w3.org/2000/svg" width="64" height="56" fill="none" class="spinner">
         <path stroke="currentColor" stroke-width="4" d="M3.464 30a4 4 0 0 1 0-4L16 4.287a4 4 0 0 1 3.464-2h25.072a4 4 0 0 1 3.464 2L60.536 26a4 4 0 0 1 0 4L48 51.713a4 4 0 0 1-3.464 2H19.464a4 4 0 0 1-3.464-2L3.464 30Z"/>
@@ -179,34 +191,91 @@
       document.body.append(script);
     });
 
-    let thread = null;
+    const MESSAGE_TYPES = {
+      GET_CACHED_RESULT: 'GET_CACHED_RESULT',
+      RECALCULATE: 'RECALCULATE',
+      RESULT: 'RESULT',
+    };
+
+    const getServiceWorker = async (scriptURL, options) => {
+      if ('serviceWorker' in navigator) {
+        try {
+          let registration = await navigator.serviceWorker.getRegistration();
+
+          if (!registration) {
+            registration = await navigator.serviceWorker.register(scriptURL, options);
+            await navigator.serviceWorker.ready;
+          } else {
+            await navigator.serviceWorker.ready;
+          }
+
+          return {
+            registration,
+            container: navigator.serviceWorker,
+            controller: registration.active,
+            addEventListener: navigator.serviceWorker.addEventListener.bind(
+              navigator.serviceWorker
+            ),
+            postMessage: registration.active.postMessage.bind(registration.active),
+          };
+        } catch (error) {
+          console.error(`Registration failed with ${error}`);
+        }
+      }
+    };
+
     const startButton = document.getElementById('start');
+    const unregisterButton = document.getElementById('unregister');
     const resultNode = document.getElementById('result');
 
-    startButton.addEventListener('click', () => {
-      if (!window.Worker) {
-        resultNode.textContent = 'Web Workers are not supported in this browser.';
+    (async () => {
+      const serviceWorker = await getServiceWorker('./thread.js', { scope: './' });
+
+      if (!serviceWorker) {
+        resultNode.textContent = 'Service Workers are not supported.';
+        startButton.disabled = true;
+        unregisterButton.disabled = true;
         return;
       }
 
-      if (!thread) {
-        thread = new Worker('./thread.js');
+      console.log(serviceWorker);
 
-        thread.addEventListener('message', (evt) => {
-          resultNode.textContent = String(evt.data);
-          startButton.disabled = false;
+      serviceWorker.addEventListener('message', (evt) => {
+        if (evt.data?.type !== MESSAGE_TYPES.RESULT) {
+          return;
+        }
+
+        const { result, fromCache } = evt.data.payload;
+        resultNode.textContent = fromCache
+          ? `Cached: ${result}`
+          : `Calculated: ${result}`;
+        startButton.disabled = false;
+      });
+
+      startButton.addEventListener('click', () => {
+        startButton.disabled = true;
+        resultNode.textContent = 'Recalculating...';
+        serviceWorker.postMessage({
+          type: MESSAGE_TYPES.RECALCULATE,
+          payload: { timeout: 5000 },
         });
+      });
 
-        thread.addEventListener('error', () => {
-          resultNode.textContent = 'Worker error';
-          startButton.disabled = false;
-        });
-      }
+      unregisterButton.addEventListener('click', async () => {
+        const unregistered = await serviceWorker.registration.unregister();
+        resultNode.textContent = unregistered
+          ? 'Service Worker unregistered'
+          : 'Failed to unregister Service Worker';
+        startButton.disabled = true;
+        unregisterButton.disabled = true;
+      });
 
-      startButton.disabled = true;
-      resultNode.textContent = 'Calculating...';
-      thread.postMessage({ timeout: 5000 });
-    });
+      resultNode.textContent = 'Loading cached result...';
+      serviceWorker.postMessage({
+        type: MESSAGE_TYPES.GET_CACHED_RESULT,
+        payload: { timeout: 3000 },
+      });
+    })();
   </script>
 </body>
 </html>
