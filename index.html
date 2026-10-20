@@ -179,7 +179,6 @@
       document.body.append(script);
     });
 
-    let thread = null;
     const startButton = document.getElementById('start');
     const resultNode = document.getElementById('result');
 
@@ -189,22 +188,23 @@
         return;
       }
 
-      if (!thread) {
-        thread = new Worker('./thread.js');
-
-        thread.onmessage = (evt) => {
-          resultNode.textContent = String(evt.data);
-          startButton.disabled = false;
-        };
-
-        thread.onerror = () => {
-          resultNode.textContent = 'Worker error';
-          startButton.disabled = false;
-        };
-      }
-
       startButton.disabled = true;
       resultNode.textContent = 'Calculating...';
+
+      const thread = new Worker('./thread.js');
+
+      thread.onmessage = (evt) => {
+        resultNode.textContent = String(evt.data);
+        startButton.disabled = false;
+        thread.terminate();
+      };
+
+      thread.onerror = () => {
+        resultNode.textContent = 'Worker error';
+        startButton.disabled = false;
+        thread.terminate();
+      };
+
       thread.postMessage(3000);
     });
   </script>
